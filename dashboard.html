@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campus Grid Planner - Dashboard</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --card: #ffffff; --text: #1f1f1d; --muted: #6b6a65;
+    --border: #e1dfd7; --green: #1D9E75; --amber: #EF9F27; --line: #888780;
+    --node: #e9e7df; --node-sub: #fbe6c2; --red: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --card: #262624; --text: #ecebe5; --muted: #a3a198;
+      --border: #3a3a36; --node: #3a3a36; --node-sub: #5c4410; --red: #e8806f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: system-ui, "Segoe UI", Arial, sans-serif; line-height: 1.5; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .stat.good .v { color: var(--green); }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .card h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  .card .note { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: var(--line); stroke-width: 1.5; }
+  .edge.faint { stroke-width: 1; stroke-dasharray: 5 4; opacity: .55; }
+  .edge.taken { stroke: var(--green); stroke-width: 3.5; stroke-linecap: round; }
+  .edge.current { stroke: var(--amber); stroke-width: 4; stroke-linecap: round; stroke-dasharray: none; opacity: 1; }
+  .node { fill: var(--node); stroke: var(--line); stroke-width: 1; }
+  .node.sub { fill: var(--node-sub); stroke: var(--amber); }
+  .idx { font-size: 12px; font-weight: 600; fill: var(--text); text-anchor: middle; dominant-baseline: central; }
+  .bname { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+  .cost { font-size: 11px; fill: var(--text); text-anchor: middle; dominant-baseline: central;
+          paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+  .cost.bold { font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  button { font: inherit; font-size: 14px; background: var(--card); color: var(--text);
+           border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+  button:hover { border-color: var(--line); }
+  button.primary { background: var(--green); border-color: var(--green); color: #fff; }
+  .status { font-size: 14px; min-height: 42px; padding: 8px 12px; border-radius: 8px;
+            background: var(--bg); border: 1px solid var(--border); margin-bottom: 12px; }
+  .status b.take { color: var(--green); } .status b.skip { color: var(--red); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; }
+  tr.cur td { background: var(--node-sub); }
+  td.take { color: var(--green); font-weight: 600; } td.skip { color: var(--red); } td.pend { color: var(--muted); }
+  .legend { font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+  .legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--green); vertical-align: middle; margin-right: 6px; }
+  .legend i.d { border-top: 2px dashed var(--line); }
+  .legend i.c { border-top: 3px solid var(--amber); }
+  .empty { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  label.opt { font-size: 13px; color: var(--muted); margin-left: auto; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Campus Grid Planner</h1>
+  <p class="sub">Minimum cost cable network using Kruskal's algorithm. Data comes from your last run of the C program.</p>
+  <div id="app"></div>
+</div>
+
+<script src="plan.js"></script>
+<script>
+(function () {
+  var app = document.getElementById('app');
+
+  if (typeof plan === 'undefined') {
+    app.innerHTML = '<div class="empty"><b>No data found.</b><br>Run the C program first. It creates a file called ' +
+      '<code>plan.js</code>. Keep <code>plan.js</code> and <code>dashboard.html</code> in the same folder, then refresh this page.</div>';
+    return;
+  }
+
+  var B = plan.buildings, C = plan.cables, n = B.length, e = C.length;
+  var NS = 'http://www.w3.org/2000/svg';
+  var VW = 420, VH = 380, PAD = 48, R = 13;
+
+  function rs(v) { return 'Rs ' + Math.round(v).toLocaleString('en-IN'); }
+  function nm(i) { return B[i].name; }
+
+  var allCost = 0, built = 0;
+  C.forEach(function (c) { allCost += c.cost; if (c.chosen) built++; });
+  var saved = plan.naive - plan.total;
+  var pct = plan.naive > 0 ? saved / plan.naive * 100 : 0;
+
+  var step = e;
+  var showCur = false;
+  var timer = null;
+
+  app.innerHTML =
+    '<div class="stats">' +
+      '<div class="stat"><div class="k">Buildings</div><div class="v">' + n + '</div></div>' +
+      '<div class="stat"><div class="k">Possible cables</div><div class="v">' + e + '</div></div>' +
+      '<div class="stat"><div class="k">Cables built (MST)</div><div class="v">' + built + '</div></div>' +
+      '<div class="stat good"><div class="k">Minimum cost</div><div class="v">' + rs(plan.total) + '</div></div>' +
+      '<div class="stat"><div class="k">Direct to substation</div><div class="v">' + rs(plan.naive) + '</div></div>' +
+      '<div class="stat good"><div class="k">Money saved</div><div class="v">' + rs(saved) + ' (' + pct.toFixed(1) + '%)</div></div>' +
+    '</div>' +
+    '<div class="panels">' +
+      '<div class="card"><h2>Before: every possible cable</h2>' +
+        '<p class="note">' + e + ' cables, ' + rs(allCost) + ' if all were built</p><svg id="before" viewBox="0 0 ' + VW + ' ' + VH + '"></svg></div>' +
+      '<div class="card"><h2>After: minimum spanning tree</h2>' +
+        '<p class="note" id="afternote"></p><svg id="after" viewBox="0 0 ' + VW + ' ' + VH + '"></svg></div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<h2>Kruskal\'s algorithm, step by step</h2>' +
+      '<p class="note">Cables are checked from cheapest to costliest. A cable is taken only if it joins two buildings that are not yet connected.</p>' +
+      '<div class="controls">' +
+        '<button id="bReset">Reset</button><button id="bPrev">Previous</button>' +
+        '<button id="bNext" class="primary">Next</button><button id="bPlay">Play</button>' +
+        '<button id="bFinal">Show final</button>' +
+        '<label class="opt"><input type="checkbox" id="allCosts"> Show all costs on the left graph</label>' +
+      '</div>' +
+      '<div class="status" id="status"></div>' +
+      '<table><thead><tr><th>#</th><th>Cable</th><th>Cost</th><th>Decision</th></tr></thead><tbody id="rows"></tbody></table>' +
+      '<div class="legend"><span><i></i>Cable built</span><span><i class="d"></i>Skipped (would form a loop)</span><span><i class="c"></i>Cable being checked</span></div>' +
+    '</div>';
+
+  var allBox = document.getElementById('allCosts');
+  allBox.checked = e <= 10;
+
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  B.forEach(function (b) {
+    minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x);
+    minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y);
+  });
+  var rx = Math.max(maxX - minX, 1), ry = Math.max(maxY - minY, 1);
+  var s = Math.min((VW - 2 * PAD) / rx, (VH - 2 * PAD) / ry);
+  var ox = (VW - rx * s) / 2, oy = (VH - ry * s) / 2;
+  var pos = B.map(function (b) {
+    return { x: ox + (b.x - minX) * s, y: oy + (maxY - b.y) * s };
+  });
+
+  function mk(tag, attrs, parent, text) {
+    var el = document.createElementNS(NS, tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    if (text !== undefined) el.textContent = text;
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+
+  function edge(svg, c, cls) {
+    var p = pos[c.u], q = pos[c.v];
+    var dx = q.x - p.x, dy = q.y - p.y, len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var ux = dx / len, uy = dy / len, g = R + 2;
+    mk('line', { x1: p.x + ux * g, y1: p.y + uy * g, x2: q.x - ux * g, y2: q.y - uy * g, 'class': cls }, svg);
+  }
+
+  function costLabel(svg, c, bold) {
+    var p = pos[c.u], q = pos[c.v];
+    mk('text', { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2, 'class': 'cost' + (bold ? ' bold' : '') }, svg, Math.round(c.cost));
+  }
+
+  function nodes(svg) {
+    B.forEach(function (b, i) {
+      var p = pos[i];
+      mk('circle', { cx: p.x, cy: p.y, r: R, 'class': 'node' + (i === 0 ? ' sub' : '') }, svg);
+      mk('text', { x: p.x, y: p.y, 'class': 'idx' }, svg, i);
+      var ly = p.y > VH - 36 ? p.y - R - 6 : p.y + R + 14;
+      var lx = Math.min(Math.max(p.x, 36), VW - 36);
+      mk('text', { x: lx, y: ly, 'class': 'bname' }, svg, b.name);
+    });
+  }
+
+  function drawBefore() {
+    var svg = document.getElementById('before');
+    svg.innerHTML = '';
+    C.forEach(function (c, i) {
+      var cur = showCur && (i === step - 1);
+      if (!cur) edge(svg, c, 'edge');
+    });
+    if (showCur && step >= 1) edge(svg, C[step - 1], 'edge current');
+    if (allBox.checked) C.forEach(function (c) { costLabel(svg, c, false); });
+    else if (showCur && step >= 1) costLabel(svg, C[step - 1], true);
+    nodes(svg);
+  }
+
+  function drawAfter() {
+    var svg = document.getElementById('after');
+    svg.innerHTML = '';
+    var cost = 0, cnt = 0;
+    C.forEach(function (c, i) { if (i < step && !c.chosen) edge(svg, c, 'edge faint'); });
+    C.forEach(function (c, i) {
+      if (i < step && c.chosen) { edge(svg, c, (showCur && i === step - 1) ? 'edge current' : 'edge taken'); cost += c.cost; cnt++; }
+    });
+    C.forEach(function (c, i) { if (i < step && c.chosen) costLabel(svg, c, true); });
+    if (showCur && step >= 1 && !C[step - 1].chosen) edge(svg, C[step - 1], 'edge current');
+    nodes(svg);
+    document.getElementById('afternote').textContent =
+      cnt + ' of ' + (n - 1) + ' cables chosen so far, ' + rs(cost);
+  }
+
+  var tbody = document.getElementById('rows');
+  C.forEach(function (c, i) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (i + 1) + '</td><td>' + nm(c.u) + ' - ' + nm(c.v) + '</td><td>' + rs(c.cost) + '</td><td></td>';
+    tbody.appendChild(tr);
+  });
+
+  function drawTable() {
+    var rows = tbody.children;
+    for (var i = 0; i < e; i++) {
+      var tr = rows[i], td = tr.children[3];
+      tr.className = (showCur && i === step - 1) ? 'cur' : '';
+      if (i < step) {
+        td.className = C[i].chosen ? 'take' : 'skip';
+        td.textContent = C[i].chosen ? 'TAKE' : 'SKIP';
+      } else {
+        td.className = 'pend';
+        td.textContent = '-';
+      }
+    }
+  }
+
+  function drawStatus() {
+    var st = document.getElementById('status');
+    if (step === 0) {
+      st.textContent = 'Start: every building is in its own group and no cable is chosen yet. Press Next.';
+      return;
+    }
+    var c = C[step - 1];
+    var msg = 'Step ' + step + ' of ' + e + ': ' + nm(c.u) + ' - ' + nm(c.v) + ' (' + rs(c.cost) + '). ';
+    msg += c.chosen
+      ? '<b class="take">TAKE</b> because the two buildings are in different groups.'
+      : '<b class="skip">SKIP</b> because they are already connected, so this cable would form a loop.';
+    if (step === e) msg += ' Done: ' + built + ' cables, total ' + rs(plan.total) + '.';
+    st.innerHTML = msg;
+  }
+
+  function render() {
+    drawBefore(); drawAfter(); drawTable(); drawStatus();
+  }
+
+  function stop() { if (timer) { clearInterval(timer); timer = null; document.getElementById('bPlay').textContent = 'Play'; } }
+
+  document.getElementById('bReset').onclick = function () { stop(); step = 0; showCur = false; render(); };
+  document.getElementById('bPrev').onclick = function () { stop(); showCur = true; if (step > 0) step--; render(); };
+  document.getElementById('bNext').onclick = function () { stop(); showCur = true; if (step < e) step++; render(); };
+  document.getElementById('bFinal').onclick = function () { stop(); step = e; showCur = false; render(); };
+  document.getElementById('bPlay').onclick = function () {
+    if (timer) { stop(); return; }
+    if (step >= e) step = 0;
+    showCur = true;
+    render();
+    document.getElementById('bPlay').textContent = 'Pause';
+    timer = setInterval(function () {
+      if (step < e) { step++; render(); } else { stop(); }
+    }, 1000);
+  };
+  allBox.onchange = render;
+
+  render();
+})();
+</script>
+</body>
+</html>
