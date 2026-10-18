@@ -1,4 +1,5 @@
 # Campus Grid Planner
+![Dashboard](dashboard.png)
 
 A Data Structures and Algorithms project that plans the **lowest-cost electricity cable network** for the buildings of a campus. The campus is modelled as a weighted graph and the cheapest network is found with **Kruskal's Minimum Spanning Tree algorithm**, written in C. A browser dashboard shows the result visually.
 
