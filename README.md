@@ -1,4 +1,5 @@
 # PowerPath Planner
+![PowerPath Planner dashboard](dashboard.png)
 
 **A minimum-cost electricity network planner using Kruskal's algorithm.**
 
