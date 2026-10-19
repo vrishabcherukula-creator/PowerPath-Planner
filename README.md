@@ -1,7 +1,8 @@
-# Campus Grid Planner
-![Dashboard](dashboard.png)
+# PowerPath Planner
 
-A Data Structures and Algorithms project that plans the **lowest-cost electricity cable network** for the buildings of a campus. The campus is modelled as a weighted graph and the cheapest network is found with **Kruskal's Minimum Spanning Tree algorithm**, written in C. A browser dashboard shows the result visually.
+**A minimum-cost electricity network planner using Kruskal's algorithm.**
+
+PowerPath Planner plans the **lowest-cost cable network** for any group of buildings: a college campus, a village, a housing colony, an industrial park or a hospital complex. The site is modelled as a weighted graph and the cheapest network is found with **Kruskal's Minimum Spanning Tree algorithm**, written in C. A browser dashboard shows the result visually.
 
 **Task 32: Electricity / Grid Connection Planner**
 
@@ -9,7 +10,7 @@ A Data Structures and Algorithms project that plans the **lowest-cost electricit
 
 ## The problem
 
-A campus has a substation and several buildings. A cable can be laid between any two buildings, but a longer cable costs more. Which cables should be built so that **every building is powered** and the **total cost is as low as possible**?
+Any site has a power source (a substation or transformer) and several buildings. A cable can be laid between any two buildings, but a longer cable costs more. Which cables should be built so that **every building is powered** and the **total cost is as low as possible**?
 
 ## How it is modelled
 
@@ -112,14 +113,14 @@ Let V be the number of buildings and E the number of possible cables (E = V(V-1)
 | Sorting the cables (bubble sort, as implemented) | O(E^2) |
 | Kruskal's loop with Union-Find | almost O(E) |
 
-With a faster sort such as `qsort`, the total becomes the standard **O(E log E)** for Kruskal's. Bubble sort is used here to keep the code simple, which is fine for a campus-sized input.
+With a faster sort such as `qsort`, the total becomes the standard **O(E log E)** for Kruskal's. Bubble sort is used here to keep the code simple, which is fine for small and medium-sized inputs.
 
 **Space:** O(E + V) for the cable list and the `parent[]` array.
 
 ## Limitations and future work
 
 - Distances are straight lines. Real cable routes depend on roads, terrain and existing trenches.
-- An MST has **no backup**: if one cable fails, part of the campus loses power. A future version can find the cheapest backup cable for every planned cable.
+- An MST has **no backup**: if one cable fails, part of the network loses power. A future version can find the cheapest backup cable for every planned cable.
 - Cables that are already built could cost zero and be merged first.
 - Prim's algorithm could be added to compare running times on larger inputs.
 - Steiner points (extra junctions) can reduce the cost further.
@@ -130,4 +131,4 @@ Graphs, weighted edges, spanning trees, minimum spanning trees, greedy algorithm
 
 ## Author
 
-Vrishab: Data Structures and Algorithms project
+Vrishab: Data Structures and Algorithms project (PowerPath Planner)

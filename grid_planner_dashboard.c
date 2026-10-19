@@ -39,8 +39,8 @@ int main() {
     float rate, total = 0, naive = 0;
 
     // ---------- 1. INPUT ----------
-    printf("=== Campus Grid Planner ===\n");
-    printf("Number of buildings (building 0 = substation): ");
+    printf("=== PowerPath Planner ===\n");
+    printf("Number of buildings (building 0 = substation / power source): ");
     scanf("%d", &n);
 
     for (int i = 0; i < n; i++) {
